@@ -5,6 +5,7 @@ Author: Anthony Johnson | EthereaLogic LLC
 ## Overview
 
 This document describes the data flow and design rationale for the Bronze handoff pattern implemented in this repo.
+The demo is intentionally Databricks-native: a serverless Lakeflow pipeline publishes Unity Catalog datasets from files landed in Unity Catalog volumes.
 
 ## Data flow
 
@@ -61,7 +62,7 @@ This document describes the data flow and design rationale for the Bronze handof
 
 ### bronze_orders_raw (streaming table)
 
-Auto Loader ingests JSON files incrementally from the landing volume. Schema inference runs with rescued-data mode enabled so that unexpected columns, type mismatches, and case drift appear in `_rescued_data` rather than silently expanding the trusted schema. File-level metadata (`source_file`, `file_mod_ts`) is captured for traceability.
+Auto Loader ingests JSON files incrementally from the landing volume. This public demo keeps the simpler directory-discovery path for readability, but production deployments should switch to file events / file notification mode for higher-scale ingestion. Schema inference runs with rescued-data mode enabled so that unexpected columns, type mismatches, and case drift appear in `_rescued_data` rather than silently expanding the trusted schema. File-level metadata (`source_file`, `file_mod_ts`) is captured for traceability.
 
 ### ops_batch_registry (materialized view)
 
@@ -115,3 +116,4 @@ For production deployments beyond this demo:
 - Add alerting on quarantine spike thresholds
 - Publish ops_handoff_summary to operational dashboards
 - Use environment-specific catalog/schema targets
+- Promote via bundle targets (`dev` for namespaced iteration, `prod` for production-mode deployment)

@@ -42,6 +42,12 @@ Landing Volume
 
 See [docs/architecture.md](docs/architecture.md) for the full diagram and design rationale.
 
+## Runtime posture
+
+- `serverless: true` is enabled for the pipeline resource, so the demo aligns with the current Databricks recommendation to start new pipelines on serverless.
+- Published datasets live in Unity Catalog (`catalog.schema.*`), and landed files are staged in Unity Catalog volumes instead of ad hoc workspace storage.
+- The bundle includes both `dev` and `prod` targets so reviewers can see the intended promotion model, even though the public demo defaults to the `dev` target.
+
 ## Demo scenarios
 
 The sample data includes four landed batches:
@@ -129,7 +135,7 @@ Update these in `databricks.yml` as needed:
 ### 3. Validate the bundle
 
 ```bash
-databricks bundle validate
+databricks bundle validate --target dev
 ```
 
 ### 4. Deploy to your dev target
@@ -155,14 +161,59 @@ Open the pipeline update URL from the CLI, then query:
 ```sql
 SELECT * FROM main.bronze_handoff_demo.ops_handoff_summary;
 
-SELECT batch_id, quarantine_reason, source_file
+SELECT batch_id, quarantine_reasons, source_file_name
 FROM main.bronze_handoff_demo.ops_quarantine_rows
-ORDER BY batch_id, source_file;
+ORDER BY batch_id, source_file_name;
 
 SELECT batch_id, count(*) AS ready_rows
 FROM main.bronze_handoff_demo.bronze_orders_ready
 GROUP BY batch_id
 ORDER BY batch_id;
+```
+
+## Event log queries
+
+Databricks treats the pipeline event log as the primary observability surface for updates, quality metrics, and flow progress. After a refresh, capture the pipeline ID from the update URL or the pipeline details page, create a temporary view for that event log on a shared cluster or SQL warehouse, then run queries like:
+
+```sql
+CREATE OR REPLACE TEMP VIEW event_log_raw AS
+SELECT * FROM event_log('<pipeline-id>');
+
+SELECT timestamp, level, event_type, message
+FROM event_log_raw
+WHERE event_type IN ('create_update', 'flow_progress')
+ORDER BY timestamp DESC
+LIMIT 50;
+```
+
+```sql
+CREATE OR REPLACE TEMP VIEW latest_update AS
+SELECT origin.update_id AS id
+FROM event_log_raw
+WHERE event_type = 'create_update'
+ORDER BY timestamp DESC
+LIMIT 1;
+
+WITH expectations_parsed AS (
+  SELECT
+    explode(
+      from_json(
+        details:flow_progress:data_quality:expectations,
+        'array<struct<name: string, dataset: string, passed_records: int, failed_records: int>>'
+      )
+    ) AS row_expectation
+  FROM event_log_raw, latest_update
+  WHERE event_type = 'flow_progress'
+    AND origin.update_id = latest_update.id
+)
+SELECT
+  row_expectation.dataset AS dataset,
+  row_expectation.name AS expectation,
+  SUM(row_expectation.passed_records) AS passing_records,
+  SUM(row_expectation.failed_records) AS failing_records
+FROM expectations_parsed
+GROUP BY row_expectation.dataset, row_expectation.name
+ORDER BY dataset, expectation;
 ```
 
 ## Expected results
@@ -205,7 +256,7 @@ This repo is intentionally public-safe. It does **not** include:
 
 This demo defaults to the simplest runnable path. For production, I would typically:
 
-- Switch to Auto Loader managed file events for scale
+- Switch from simple directory discovery to Databricks file events / Auto Loader file notification mode for scale
 - Use environment-specific catalogs and schemas
 - Separate landing, checkpoint, and published paths cleanly
 - Add alerting on quarantine spikes and replay detection

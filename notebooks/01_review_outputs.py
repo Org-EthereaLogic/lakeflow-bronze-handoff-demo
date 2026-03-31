@@ -89,6 +89,62 @@
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## 6. Event Log — flow progress and expectation metrics
+# MAGIC
+# MAGIC Replace `<pipeline-id>` below with the ID from the pipeline details page or
+# MAGIC the update URL after you launch a refresh. Run these cells on a shared
+# MAGIC cluster or SQL warehouse.
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC CREATE OR REPLACE TEMP VIEW event_log_raw AS
+# MAGIC SELECT * FROM event_log('<pipeline-id>');
+# MAGIC
+# MAGIC SELECT
+# MAGIC   timestamp,
+# MAGIC   level,
+# MAGIC   event_type,
+# MAGIC   message
+# MAGIC FROM event_log_raw
+# MAGIC WHERE event_type IN ('create_update', 'flow_progress')
+# MAGIC ORDER BY timestamp DESC
+# MAGIC LIMIT 50;
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC CREATE OR REPLACE TEMP VIEW latest_update AS
+# MAGIC SELECT origin.update_id AS id
+# MAGIC FROM event_log_raw
+# MAGIC WHERE event_type = 'create_update'
+# MAGIC ORDER BY timestamp DESC
+# MAGIC LIMIT 1;
+# MAGIC
+# MAGIC WITH expectations_parsed AS (
+# MAGIC   SELECT
+# MAGIC     explode(
+# MAGIC       from_json(
+# MAGIC         details:flow_progress:data_quality:expectations,
+# MAGIC         'array<struct<name: string, dataset: string, passed_records: int, failed_records: int>>'
+# MAGIC       )
+# MAGIC     ) AS row_expectation
+# MAGIC   FROM event_log_raw, latest_update
+# MAGIC   WHERE event_type = 'flow_progress'
+# MAGIC     AND origin.update_id = latest_update.id
+# MAGIC )
+# MAGIC SELECT
+# MAGIC   row_expectation.dataset AS dataset,
+# MAGIC   row_expectation.name AS expectation,
+# MAGIC   SUM(row_expectation.passed_records) AS passing_records,
+# MAGIC   SUM(row_expectation.failed_records) AS failing_records
+# MAGIC FROM expectations_parsed
+# MAGIC GROUP BY row_expectation.dataset, row_expectation.name
+# MAGIC ORDER BY dataset, expectation;
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Expected Results Summary
 # MAGIC
 # MAGIC | Batch | Scenario | Expected Outcome |
