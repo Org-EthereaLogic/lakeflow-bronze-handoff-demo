@@ -1,0 +1,5 @@
+{"batch_id": "B-004", "order_id": "ORD-2001", "customer_id": null, "order_total": 89.99, "event_ts": "2026-03-03T10:00:00Z"}
+{"batch_id": "B-004", "order_id": null, "customer_id": "CUST-401", "order_total": 120.00, "event_ts": "2026-03-03T11:00:00Z"}
+{"batch_id": "B-004", "order_id": "ORD-2003", "customer_id": "CUST-402", "order_total": -15.00, "event_ts": "2026-03-03T12:00:00Z"}
+{"batch_id": "B-004", "order_id": "ORD-2004", "customer_id": "CUST-403", "order_total": 55.00, "event_ts": null}
+{"batch_id": null, "order_id": "ORD-2005", "customer_id": "CUST-404", "order_total": 33.50, "event_ts": "2026-03-03T14:00:00Z"}

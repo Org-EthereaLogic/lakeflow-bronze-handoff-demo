@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Databricks
+.databricks/
+
+# Test / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Generated images (regenerate with: python docs/generate_visuals.py)
+docs/images/*.png
+
+
+#Ignore insiders AI rules
+.github/instructions/codacy.instructions.md

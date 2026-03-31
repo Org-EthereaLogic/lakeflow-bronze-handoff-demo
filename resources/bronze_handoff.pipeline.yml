@@ -1,0 +1,14 @@
+resources:
+  pipelines:
+    bronze_handoff:
+      name: ${var.pipeline_name}
+      catalog: ${var.catalog}
+      target: ${var.schema}
+      serverless: true
+      continuous: false
+      libraries:
+        - glob:
+            include: ./src/lakeflow_sql/**
+      configuration:
+        demo.landing_path: ${var.landing_path}
+        demo.checkpoint_root: ${var.checkpoint_root}

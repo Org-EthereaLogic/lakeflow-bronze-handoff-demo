@@ -1,0 +1,8 @@
+resources:
+  jobs:
+    refresh_bronze_handoff_demo:
+      name: refresh_bronze_handoff_demo
+      tasks:
+        - task_key: refresh_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.bronze_handoff.id}

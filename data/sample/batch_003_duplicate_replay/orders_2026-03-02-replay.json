@@ -1,0 +1,10 @@
+{"batch_id": "B-001", "order_id": "ORD-0001", "customer_id": "CUST-101", "order_total": 62.49, "event_ts": "2026-03-01T09:00:00Z", "region": "US-WEST"}
+{"batch_id": "B-001", "order_id": "ORD-0002", "customer_id": "CUST-102", "order_total": 74.99, "event_ts": "2026-03-01T10:00:00Z", "region": "US-WEST"}
+{"batch_id": "B-001", "order_id": "ORD-0003", "customer_id": "CUST-103", "order_total": 87.49, "event_ts": "2026-03-01T11:00:00Z", "region": "US-WEST"}
+{"batch_id": "B-001", "order_id": "ORD-0004", "customer_id": "CUST-104", "order_total": 99.99, "event_ts": "2026-03-01T12:00:00Z", "region": "US-WEST"}
+{"batch_id": "B-001", "order_id": "ORD-0005", "customer_id": "CUST-105", "order_total": 112.49, "event_ts": "2026-03-01T13:00:00Z", "region": "US-WEST"}
+{"batch_id": "B-001", "order_id": "ORD-0006", "customer_id": "CUST-106", "order_total": 124.99, "event_ts": "2026-03-01T14:00:00Z", "region": "US-WEST"}
+{"batch_id": "B-001", "order_id": "ORD-0007", "customer_id": "CUST-107", "order_total": 137.49, "event_ts": "2026-03-01T15:00:00Z", "region": "US-WEST"}
+{"batch_id": "B-001", "order_id": "ORD-0008", "customer_id": "CUST-108", "order_total": 149.99, "event_ts": "2026-03-01T16:00:00Z", "region": "US-WEST"}
+{"batch_id": "B-001", "order_id": "ORD-0009", "customer_id": "CUST-109", "order_total": 162.49, "event_ts": "2026-03-01T17:00:00Z", "region": "US-WEST"}
+{"batch_id": "B-001", "order_id": "ORD-0010", "customer_id": "CUST-110", "order_total": 174.99, "event_ts": "2026-03-01T18:00:00Z", "region": "US-WEST"}

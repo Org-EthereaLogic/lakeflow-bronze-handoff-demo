@@ -1,0 +1,22 @@
+bundle:
+  name: lakeflow_bronze_handoff_demo
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    default: main
+  schema:
+    default: bronze_handoff_demo
+  landing_path:
+    default: /Volumes/main/bronze_handoff_demo/landing
+  checkpoint_root:
+    default: /Volumes/main/bronze_handoff_demo/ops
+  pipeline_name:
+    default: lakeflow_bronze_handoff_demo
+
+targets:
+  dev:
+    mode: development
+    default: true
