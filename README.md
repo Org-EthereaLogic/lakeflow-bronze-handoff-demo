@@ -1,160 +1,146 @@
-# Lakeflow Bronze Handoff Demo with Auto Loader, Quarantine, and Replay Protection
+# Block Untrusted Landed Batches Before They Reach Trusted Bronze Tables
 
 Built by Anthony Johnson | EthereaLogic LLC
 
-Most public Databricks demos start after data is already inside Bronze. This project focuses on the messier boundary that enterprise teams actually struggle with first: landed files, schema drift, rescued data, duplicate batch replay, and quarantine controls before downstream users trust Bronze outputs.
+`lakeflow_bronze_handoff_demo` is a public Databricks demonstration of a Bronze handoff control pattern for landed-file ingestion. It shows how to quarantine rows that fail contract checks, flag replayed business batches, and publish an operational summary before downstream Bronze, Silver, or analytics consumers trust the data.
 
-This demo uses Lakeflow Spark Declarative Pipelines, Auto Loader, Unity Catalog, and Declarative Automation Bundles (formerly Databricks Asset Bundles) to show a practical Bronze handoff pattern that is public-safe, testable, and easy to review.
+The implementation uses Lakeflow Spark Declarative Pipelines, Auto Loader, Unity Catalog, and Declarative Automation Bundles to model the control in a public-safe way. The published local evidence is derived deterministically from the checked-in sample batches and handoff rules; live workspace validation still requires deploying the bundle and running the pipeline in Databricks.
 
-## What this repo demonstrates
+## Executive Summary
 
-- Incremental file ingestion from a Unity Catalog volume using Auto Loader
-- Lakeflow streaming-table ingestion for raw Bronze capture
-- Expectation-style handoff checks for required fields and contract validity
-- Rescued-data visibility for schema/type drift
-- Duplicate replay protection at the business batch level
-- Quarantine outputs for invalid or untrusted rows
-- Operational summary views for landed, ready, quarantined, and duplicate records
-- Source-controlled bundle deployment and pipeline refresh
+| Leadership question | Answer |
+| ------------------- | ------ |
+| What business risk does this address? | Landed files can look operationally healthy while still carrying rescued drift, replayed business batches, or partial payloads that should not be trusted downstream. |
+| What does this demo prove? | The local verification surface models `32` landed rows across four batches, leaves `14` ready for downstream use, quarantines `18`, flags `3` rescued-drift rows, and blocks `10` replay rows from the trusted path. |
+| Why does it matter for technology leaders? | It demonstrates a practical control pattern for the operational boundary where files become trusted Bronze data, with inspectable quarantine evidence instead of silent failure. |
 
-## Why this matters
+## The Business Problem
 
-Auto Loader already helps ingest files efficiently and reliably, but real enterprise ingestion still needs business-level controls:
+Most public Databricks examples start after data is already inside Bronze. Enterprise teams usually struggle earlier, at the point where landed files first become candidate Bronze data.
 
-- Was this batch already sent once?
-- Did the source quietly introduce a new column?
-- Did type drift get rescued instead of parsed cleanly?
-- Are required business fields missing?
-- Can downstream Bronze/Silver consumers trust this batch yet?
+That is where quiet failures accumulate:
 
-This repo answers those questions with a small, clear demo.
+- A source adds, renames, or retypes a column.
+- An operations team re-sends a batch under a different file name.
+- An upstream extract partially fails, leaving required business fields null.
+- Downstream consumers start reading Bronze before anyone has validated the batch.
 
-## Architecture
+If the handoff is weak, the platform can look healthy while downstream teams consume untrusted data. Technology leaders need a control that makes this boundary explicit, reviewable, and operationally visible.
 
-```
-Landing Volume
-  → Auto Loader / raw ingest
-  → bronze_orders_raw
-  → batch registry + quarantine rules
-  → bronze_orders_ready
-  → ops_handoff_summary
-```
+## What This Demo Proves
 
-See [docs/architecture.md](docs/architecture.md) for the full diagram and design rationale.
+The current verified local surface for this repository is:
 
-## Runtime posture
+| Verified outcome | Evidence from the repository |
+| ---------------- | ---------------------------- |
+| Repository verification contract | `pytest -q` completes with `37 passed`, and `ruff check src tests docs` passes. |
+| Deterministic demo scope | Four landed batches exercise clean baseline, schema/type drift, duplicate replay, and partial payload scenarios. |
+| Handoff outcome | The local evidence model derives `32` landed rows, `14` ready rows, and `18` quarantined rows. |
+| Drift visibility | `3` rows fail the rescued-data handoff rule and remain out of the trusted path. |
+| Replay protection | `10` rows fail the replay rule and stay out of `bronze_orders_ready`. |
+| Operational transparency | The demo publishes quarantine reasons, batch-registry metadata, and an aggregate handoff summary for operator review. |
 
-- `serverless: true` is enabled for the pipeline resource, so the demo aligns with the current Databricks recommendation to start new pipelines on serverless.
-- Published datasets live in Unity Catalog (`catalog.schema.*`), and landed files are staged in Unity Catalog volumes instead of ad hoc workspace storage.
-- The bundle includes both `dev` and `prod` targets so reviewers can see the intended promotion model, even though the public demo defaults to the `dev` target.
+These counts come from the checked-in sample batches plus the documented handoff rules in the local evidence model. They are reproducible in this repository, but they are not a substitute for running the Lakeflow pipeline in a Databricks workspace.
 
-## Demo scenarios
+## Verified Results
 
-The sample data includes four landed batches:
+### Exhibit 1: 32 Landed Rows Narrow to 14 Trusted Rows
 
-1. **batch_001_good** — Clean rows that should pass all handoff checks.
-2. **batch_002_schema_drift** — New/changed fields that should appear as rescued or quarantined.
-3. **batch_003_duplicate_replay** — A replay of an already-seen business batch under a different file name.
-4. **batch_004_partial_payload** — Rows with missing required fields.
+The local evidence model shows the full handoff funnel. Only `14` of the `32` landed rows clear every required, drift, and replay control before they are treated as ready for downstream use.
 
-## Published outputs
+<p align="center">
+  <img src="docs/images/quarantine_funnel.png" alt="Quarantine funnel showing 32 landed rows narrowing to 14 trusted rows after handoff controls" width="900"/>
+</p>
 
-This pipeline publishes the following objects in Unity Catalog:
+### Exhibit 2: Replay Protection Blocks a Re-Sent Business Batch
 
-- `catalog.schema.bronze_orders_raw` — streaming table, raw Auto Loader ingest
-- `catalog.schema.ops_batch_registry` — materialized view, batch-level operational metadata
-- `catalog.schema.ops_quarantine_rows` — materialized view, rows that failed handoff checks
-- `catalog.schema.bronze_orders_ready` — materialized view, contract-compliant rows for downstream
-- `catalog.schema.ops_handoff_summary` — materialized view, landed/ready/quarantined/duplicate ratios
+Auto Loader protects against reprocessing the same file, but renamed re-sends are still a business risk. This demo adds a batch-registry control so replayed business batches are flagged and quarantined instead of slipping into trusted Bronze output.
 
-## Repo layout
+<p align="center">
+  <img src="docs/images/replay_protection_flow.png" alt="Replay protection flow showing a re-sent business batch diverted to quarantine" width="900"/>
+</p>
 
-```text
-lakeflow_bronze_handoff_demo/
-├── databricks.yml
-├── resources/
-│   ├── bronze_handoff.pipeline.yml
-│   └── refresh_demo.job.yml
-├── src/
-│   ├── lakeflow_sql/
-│   │   ├── 00_bronze_orders_raw.sql
-│   │   ├── 10_ops_batch_registry.sql
-│   │   ├── 20_ops_quarantine_rows.sql
-│   │   ├── 30_bronze_orders_ready.sql
-│   │   └── 40_ops_handoff_summary.sql
-│   └── bronze_handoff_demo/
-│       ├── __init__.py
-│       ├── sample_data.py
-│       ├── manifests.py
-│       └── rules.py
-├── notebooks/
-│   ├── 00_seed_demo_files.py
-│   └── 01_review_outputs.py
-├── data/sample/
-├── docs/
-├── tests/
-└── .github/workflows/ci.yml
-```
+### Exhibit 3: The Bronze Handoff Control Is Explicit and Reviewable
 
-## Local development
+The control surface is intentionally simple: raw ingest, batch registry, quarantine, ready output, and an operational summary. That makes it easier for platform and governance teams to review how trust is established before downstream consumption.
 
-This repo includes a small Python utility package for sample-data generation, docs visuals, and tests.
+<p align="center">
+  <img src="docs/images/bronze_handoff_architecture.png" alt="Architecture diagram showing the governed Bronze handoff control before downstream trust" width="900"/>
+</p>
+
+## How the Control Works
+
+1. Auto Loader ingests landed JSON files into `bronze_orders_raw` with rescued-data visibility turned on.
+2. `ops_batch_registry` tracks first-seen batch and file combinations to catch business-level replay scenarios.
+3. `ops_quarantine_rows` retains every row that fails at least one named handoff rule.
+4. `bronze_orders_ready` publishes only rows that clear the required-field, rescued-data, and replay checks.
+5. `ops_handoff_summary` aggregates ready, quarantined, rescued, and duplicate counts into a single operator-facing surface.
+
+The technical architecture and scenario narrative live in [Architecture](docs/architecture.md) and [Case study](docs/case_study.md). The README stays focused on the operating problem and the control outcome.
+
+## Databricks Fit
+
+This repository is intentionally Databricks-native:
+
+- A serverless Lakeflow pipeline handles the Bronze handoff path.
+- Published datasets live in Unity Catalog, and landed files are staged in Unity Catalog volumes.
+- The bundle includes both `dev` and `prod` targets so reviewers can see the intended promotion model.
+- The pipeline event log remains the operational observability surface for update and expectation details.
+
+## Quick Start
+
+### 1. Create a local environment
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+python3.12 -m venv .venv
+. .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -e ".[dev,docs]"
+python -m pip install -e ".[dev,docs]"
+```
+
+### 2. Run the local verification contract
+
+```bash
 pytest -q
 ruff check src tests docs
 ```
 
-## Databricks quickstart
+Expected verified result:
 
-### 1. Authenticate
+```text
+37 passed
+```
 
-Configure Databricks CLI access to your workspace.
-If you use a named Databricks CLI profile, set it for the session before running
-bundle commands:
+### 3. Regenerate the README exhibits
+
+```bash
+python docs/generate_visuals.py
+```
+
+### 4. Validate and deploy the Databricks bundle
+
+If you use a named Databricks CLI profile, export it first:
 
 ```bash
 export DATABRICKS_CONFIG_PROFILE=<profile-name>
 ```
 
-You can also pass `--profile <profile-name>` to each Databricks CLI command instead.
-
-### 2. Review bundle variables
-
-Update these in `databricks.yml` as needed:
-
-- `catalog`
-- `schema`
-- `landing_path`
-- `checkpoint_root`
-
-### 3. Validate the bundle
+Review the `catalog`, `schema`, `landing_path`, and `checkpoint_root` variables in `databricks.yml`, then run:
 
 ```bash
 databricks bundle validate --target dev
-```
-
-### 4. Deploy to your dev target
-
-```bash
 databricks bundle deploy --target dev
 ```
 
-### 5. Seed sample files
+### 5. Seed sample files and run the pipeline
 
-Run the `notebooks/00_seed_demo_files.py` notebook to copy the sample batches into the configured landing path.
-
-### 6. Run the pipeline
+Run `notebooks/00_seed_demo_files.py` to copy the sample batches into the configured landing path, then start the pipeline:
 
 ```bash
 databricks pipelines run --target dev
 ```
 
-### 7. Review outputs
+### 6. Review the published outputs
 
 Open the pipeline update URL from the CLI, then query:
 
@@ -171,7 +157,7 @@ GROUP BY batch_id
 ORDER BY batch_id;
 ```
 
-## Event log queries
+## Event Log Queries
 
 Databricks treats the pipeline event log as the primary observability surface for updates, quality metrics, and flow progress. After a refresh, capture the pipeline ID from the update URL or the pipeline details page, create a temporary view for that event log on a shared cluster or SQL warehouse, then run queries like:
 
@@ -216,33 +202,42 @@ GROUP BY row_expectation.dataset, row_expectation.name
 ORDER BY dataset, expectation;
 ```
 
-## Expected results
+## Technical References
 
-- **batch_001_good** lands in `bronze_orders_ready`
-- **batch_002_schema_drift** produces rescued/quarantined rows
-- **batch_003_duplicate_replay** is flagged in the batch registry and blocked from ready output
-- **batch_004_partial_payload** lands in quarantine
-- **ops_handoff_summary** shows the ready/quarantine split clearly
+- [Architecture](docs/architecture.md)
+- [Case study](docs/case_study.md)
 
-## Design choices
+## Repo Layout
 
-### Why Auto Loader?
+```text
+lakeflow_bronze_handoff_demo/
+├── databricks.yml
+├── resources/
+│   ├── bronze_handoff.pipeline.yml
+│   └── refresh_demo.job.yml
+├── src/
+│   ├── lakeflow_sql/
+│   │   ├── 00_bronze_orders_raw.sql
+│   │   ├── 10_ops_batch_registry.sql
+│   │   ├── 20_ops_quarantine_rows.sql
+│   │   ├── 30_bronze_orders_ready.sql
+│   │   └── 40_ops_handoff_summary.sql
+│   └── bronze_handoff_demo/
+│       ├── __init__.py
+│       ├── demo_metrics.py
+│       ├── manifests.py
+│       ├── rules.py
+│       └── sample_data.py
+├── notebooks/
+│   ├── 00_seed_demo_files.py
+│   └── 01_review_outputs.py
+├── data/sample/
+├── docs/
+├── tests/
+└── .github/workflows/ci.yml
+```
 
-Because file-based ingestion should be incremental, restart-safe, and operationally visible.
-
-### Why a Unity Catalog volume?
-
-Because the demo should look like a governed Databricks project, not an ad hoc notebook.
-
-### Why quarantine instead of silent drop?
-
-Because downstream trust improves when bad rows remain inspectable.
-
-### Why a batch registry?
-
-Because file-level ingestion guarantees do not replace business-level replay controls.
-
-## Public-safe boundaries
+## Public-Safe Boundaries
 
 This repo is intentionally public-safe. It does **not** include:
 
@@ -252,17 +247,17 @@ This repo is intentionally public-safe. It does **not** include:
 - Production secrets
 - Enterprise-specific IAM or network configuration
 
-## Production notes
+## Production Notes
 
-This demo defaults to the simplest runnable path. For production, I would typically:
+This demo defaults to the simplest runnable path. For production, the next steps would typically be:
 
-- Switch from simple directory discovery to Databricks file events / Auto Loader file notification mode for scale
+- Switch from simple directory discovery to Databricks file events for scale
 - Use environment-specific catalogs and schemas
 - Separate landing, checkpoint, and published paths cleanly
 - Add alerting on quarantine spikes and replay detection
 - Publish operational dashboards from `ops_handoff_summary`
 
-## Future enhancements
+## Future Enhancements
 
 - Expectation rules stored in Unity Catalog tables
 - Scheduled refresh job with notifications

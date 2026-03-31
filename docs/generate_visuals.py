@@ -1,6 +1,6 @@
 """
-generate_visuals — Create architecture diagrams and operational charts
-for the docs/images/ directory.
+generate_visuals - Create executive-style architecture diagrams and
+operational exhibits for the docs/images/ directory.
 
 Usage:
     python docs/generate_visuals.py
@@ -83,8 +83,13 @@ def generate_architecture_diagram() -> None:
     ax.annotate("", xy=(5.5, 1.4), xytext=(4.0, 2.9), arrowprops=arrow_kw)
     ax.annotate("", xy=(4.0, 0.9), xytext=(5.5, 1.4), arrowprops=arrow_kw)
 
-    ax.set_title("Bronze Handoff Architecture", fontsize=14, fontweight="bold",
-                 color=DARK, pad=15)
+    ax.set_title(
+        "Governed Bronze Handoff Before Downstream Trust",
+        fontsize=14,
+        fontweight="bold",
+        color=DARK,
+        pad=15,
+    )
     _save(fig, "bronze_handoff_architecture.png")
 
 
@@ -109,7 +114,12 @@ def generate_quarantine_funnel() -> None:
     ax.set_yticklabels(stages, fontsize=10)
     ax.invert_yaxis()
     ax.set_xlabel("Row Count", fontsize=10)
-    ax.set_title("Quarantine Funnel — Demo Batches", fontsize=13, fontweight="bold", color=DARK)
+    ax.set_title(
+        "32 Landed Rows Narrow to 14 Trusted Rows",
+        fontsize=13,
+        fontweight="bold",
+        color=DARK,
+    )
 
     for bar, count in zip(bars, counts):
         ax.text(bar.get_width() + 0.3, bar.get_y() + bar.get_height() / 2,
@@ -160,8 +170,13 @@ def generate_replay_protection_flow() -> None:
     ax.text(9.3, 2.8, "1st", fontsize=7, color=GREEN, fontweight="bold")
     ax.text(9.3, 1.3, "2nd+", fontsize=7, color=RED, fontweight="bold")
 
-    ax.set_title("Replay Protection Flow", fontsize=13, fontweight="bold",
-                 color=DARK, pad=12)
+    ax.set_title(
+        "Replay Protection Blocks a Re-Sent Business Batch",
+        fontsize=13,
+        fontweight="bold",
+        color=DARK,
+        pad=12,
+    )
     _save(fig, "replay_protection_flow.png")
 
 
