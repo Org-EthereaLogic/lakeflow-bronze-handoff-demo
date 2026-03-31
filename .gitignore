@@ -23,6 +23,10 @@ Thumbs.db
 .pytest_cache/
 htmlcov/
 .coverage
+coverage.xml
+
+# Local analysis / scanner workspace
+.codacy/
 
 # Generated images (regenerate with: python docs/generate_visuals.py)
 docs/images/*.png
