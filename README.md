@@ -1,5 +1,7 @@
 # Lakeflow Bronze Handoff Demo with Auto Loader, Quarantine, and Replay Protection
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/d1c01009838a47559b921ee956ce7376)](https://app.codacy.com/gh/Org-EthereaLogic/lakeflow-bronze-handoff-demo?utm_source=github.com&utm_medium=referral&utm_content=Org-EthereaLogic/lakeflow-bronze-handoff-demo&utm_campaign=Badge_Grade)
+
 Built by Anthony Johnson | EthereaLogic LLC
 
 Most public Databricks demos start after data is already inside Bronze. This project focuses on the messier boundary that enterprise teams actually struggle with first: landed files, schema drift, rescued data, duplicate batch replay, and quarantine controls before downstream users trust Bronze outputs.
